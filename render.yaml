@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: mental-health-app
+    name: bipolar-app
     runtime: python
     pythonVersion: "3.10.12"
     buildCommand: pip install -r requirements.txt
