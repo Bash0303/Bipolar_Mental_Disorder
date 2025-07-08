@@ -1,7 +1,4 @@
-import sys
-if sys.version_info >= (3, 11):
-    st.error("Python 3.10 or lower required")
-    st.stop()
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -38,10 +35,15 @@ FEATURE_COLS = [col for col in EXPECTED_COLUMNS if col not in ["Patient Number",
 @st.cache_resource
 def load_or_train_model():
     try:
-        # Try to load existing model
-        model, label_encoder, ordinal_encoder = pickle.load(open(MODEL_FILE, 'rb'))
-        st.success("Loaded pre-trained model from disk")
-        return model, label_encoder, ordinal_encoder
+        # When loading:
+        try:
+            with open(MODEL_FILE, 'rb') as f:
+                model, label_encoder, encoder = pickle.load(f)
+                st.success("Loaded pre-trained model from disk")
+                return model, label_encoder, encoder
+        except Exception as e:
+            st.error(f"Model loading failed: {str(e)}")
+            raise
     except:
         st.warning("Training new model...")
         
@@ -59,10 +61,18 @@ def load_or_train_model():
             non_numeric_cols = df.select_dtypes(exclude=['number']).columns
             non_numeric_cols = [col for col in non_numeric_cols if col != "Expert Diagnose"]
             
-            # Encode non-numeric features
-            ordinal_encoder = OrdinalEncoder()
-            if len(non_numeric_cols) > 0:
-                df[non_numeric_cols] = ordinal_encoder.fit_transform(df[non_numeric_cols])
+            # Old code (problematic in 3.13):
+            # ordinal_encoder = OrdinalEncoder()
+            # if non_numeric_cols:
+            #     df[non_numeric_cols] = ordinal_encoder.fit_transform(df[non_numeric_cols])
+
+            # New code:
+            from sklearn.preprocessing import OneHotEncoder
+            encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
+            if non_numeric_cols:
+                encoded_cols = encoder.fit_transform(df[non_numeric_cols])
+                encoded_df = pd.DataFrame(encoded_cols, columns=encoder.get_feature_names_out())
+                df = pd.concat([df.drop(columns=non_numeric_cols), encoded_df], axis=1)
             
             # Encode target labels
             label_encoder = LabelEncoder()
@@ -82,11 +92,15 @@ def load_or_train_model():
             model.fit(X_train, y_train)
             
             # Save model
+            # When saving:
             with open(MODEL_FILE, 'wb') as f:
-                pickle.dump((model, label_encoder, ordinal_encoder), f)
+                if 'encoder' in locals():
+                    pickle.dump((model, label_encoder, encoder), f)
+                else:
+                    pickle.dump((model, label_encoder, None), f)
             
             st.success("Model trained and saved successfully!")
-            return model, label_encoder, ordinal_encoder
+            return model, label_encoder, encoder
             
         except Exception as e:
             st.error(f"Error training model: {e}")
@@ -136,7 +150,7 @@ def main():
     """)
     
     # Load or train model
-    model, label_encoder, ordinal_encoder = load_or_train_model()
+    model, label_encoder, encoder = load_or_train_model()
     
     if model is None:
         st.error("Failed to load or train model. Please check your dataset.")
@@ -200,8 +214,10 @@ def main():
                 
                 # Encode non-numeric features if needed
                 non_numeric_cols = features.select_dtypes(exclude=['number']).columns
-                if len(non_numeric_cols) > 0 and ordinal_encoder is not None:
-                    features[non_numeric_cols] = ordinal_encoder.transform(features[non_numeric_cols])
+                if len(non_numeric_cols) > 0 and encoder is not None:
+                    encoded_cols = encoder.transform(features[non_numeric_cols])
+                    encoded_df = pd.DataFrame(encoded_cols, columns=encoder.get_feature_names_out())
+                    features = pd.concat([features.drop(columns=non_numeric_cols), encoded_df], axis=1)
                 
                 # Predict
                 prediction_code = model.predict(features)[0]
