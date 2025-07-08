@@ -69,11 +69,6 @@ def load_or_train_model():
             non_numeric_cols = df.select_dtypes(exclude=['number']).columns
             non_numeric_cols = [col for col in non_numeric_cols if col != "Expert Diagnose"]
             
-            # Old code (problematic in 3.13):
-            # ordinal_encoder = OrdinalEncoder()
-            # if non_numeric_cols:
-            #     df[non_numeric_cols] = ordinal_encoder.fit_transform(df[non_numeric_cols])
-
             # New code:
             from sklearn.preprocessing import OneHotEncoder
             encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
@@ -100,7 +95,6 @@ def load_or_train_model():
             model.fit(X_train, y_train)
             
             # Save model
-            # When saving:
             with open(MODEL_FILE, 'wb') as f:
                 if 'encoder' in locals():
                     pickle.dump((model, label_encoder, encoder), f)
