@@ -1,6 +1,7 @@
 services:
   - type: web
-    name: mental_health_app
+    name: mental-health-app
     runtime: python
+    pythonVersion: "3.10.12"
     buildCommand: pip install -r requirements.txt
     startCommand: streamlit run mental_health_app.py --server.port=$PORT --server.address=0.0.0.0

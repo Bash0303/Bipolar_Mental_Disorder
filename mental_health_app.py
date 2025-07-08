@@ -42,11 +42,15 @@ def load_or_train_model():
         # When loading:
         try:
             with open(MODEL_FILE, 'rb') as f:
-                model, label_encoder, encoder = pickle.load(f)
-                st.success("Loaded pre-trained model from disk")
-                return model, label_encoder, encoder
+                try:
+                    model, label_encoder, encoder = pickle.load(f)
+                    st.success("Loaded pre-trained model from disk")
+                    return model, label_encoder, encoder
+                except Exception as e:
+                    st.error(f"Model loading error: {str(e)}")
+                    return None, None, None
         except Exception as e:
-            st.error(f"Model loading failed: {str(e)}")
+            st.error(f"Model file access failed: {str(e)}")
             raise
     except:
         st.warning("Training new model...")
