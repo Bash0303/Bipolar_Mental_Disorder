@@ -1,4 +1,8 @@
-
+import sys
+if sys.version_info < (3, 10):
+    import streamlit as st
+    st.error("Python 3.10 or higher required")
+    st.stop()
 import streamlit as st
 import pandas as pd
 import numpy as np
